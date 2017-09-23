@@ -1,0 +1,12 @@
+Vagrant.configure("2") do |config|
+  config.vm.provider :virtualbox do |virtualbox|
+    virtualbox.customize ["modifyvm", :id, "--nicpromisc2", "allow-all"]
+  end
+  config.vm.box = "bento/centos-7.3"
+  config.vm.network "private_network", type: "dhcp"
+  config.vm.synced_folder "~/git/ansible-ina-box/", "/opt/ansible-ina-box"
+  config.vm.provision "ansible" do |ansible|
+            ansible.playbook = "ansible.yml"
+  end
+
+end

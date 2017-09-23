@@ -1,0 +1,73 @@
+- name: config dev env
+  become: yes
+  hosts: all
+
+  tasks:
+
+    - name: create ansible-admin user
+      user:
+        name: ansible-admin
+        state: present
+
+    - name: add vagrant user to ansible-admin group
+      user:
+        name: vagrant
+        state: present
+        groups: ansible-admin
+        append: yes
+
+    - name: get python 3.6
+      unarchive:
+        src: https://www.python.org/ftp/python/3.6.2/Python-3.6.2.tgz
+        dest: /tmp/
+        remote_src: yes
+        creates: /usr/local/bin/python3.6
+
+    - name: install yum-utils
+      yum:
+        name: yum-utils
+        state: present
+
+    - name: install python builddeps
+      command: yum-builddep -y python
+
+    - name: configure python3.6.2
+      command: ./configure
+      args:
+        chdir: /tmp/Python-3.6.2
+        creates: /usr/local/bin/python3.6
+
+    - name: make python 3.6.2
+      make:
+        chdir: /tmp/Python-3.6.2
+        target: install
+
+    - name: link python 3.6.2
+      file:
+        src: /usr/local/bin/python3
+        dest: /usr/bin/python3
+        state: link
+
+    - name: link pip3.6
+      file:
+        src: /usr/local/bin/pip3
+        dest: /usr/bin/pip3
+        state: link
+
+    - name: install packages
+      pip:
+        name: "{{item}}"
+        state: present
+        executable: pip3
+      with_items:
+        - sh==1.12.14
+
+    - name: create log location
+      file:
+        path: /var/log/ansible-ina-box
+        state: directory
+        owner: ansible-admin
+        group: ansible-admin
+        mode: 0775
+
+
