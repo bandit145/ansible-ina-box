@@ -1,4 +1,7 @@
 #!/usr/bin/env python3.6
-import sqlite3
 import argparse
 import sys
+import sh
+parser = argparse.ArgumentParser(description='Control script for ansible-ina-box')
+parser.add_subparsers('run',description='Run ansible playbook')
+parser.add_subparsers()
