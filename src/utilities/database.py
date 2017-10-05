@@ -1,121 +1,61 @@
-import sqlite3
+import rethinkdb
 import sys
 class Database:
 
-	def __init__(self,db_loc, logging):
+	def __init__(self, logging):
 		self.logging = logging
-		self.conn = sqlite3.connect(db_loc+'ans_box.db')
+		self.conn = rethinkdb.connect('localhost',28015)
 
 	def provision_database(self):
 		#this cursor might have to be cleared
 		try:
+			if 'test' in rethinkdb.db_list().run(self.conn):
+				rethinkdb.db_drop('test')
+			if 'ansible_ina_box' not in rethinkdb.db_list().run(self.conn):
+				rethinkdb.db_create('ansible_ina_box').run(self.conn, db='ansible_ina_box')
+				rethinkdb.db('ansible_ina_box').table_create('playbook_runs').run(self.conn, db='ansible_ina_box')
 
-			self.conn.execute('''create table tasks
-								(task_id integer not null, play_name text not null,task_name text not null, result text not null,
-								 target text not null, stderr text)''')
-
-			self.conn.execute('''create table plays
-							(play_id integer, play_name text, tasks integer not null
-								,foreign key(tasks) references tasks(task_id))''')
-
-			self.conn.execute('''create table playbooks
-								(playbook_name text not null, overall_result text,
-								plays integer,
-								 foreign key(plays) references plays(play_id))''')
-			self.conn.commit()
-		except sqlite3.DatabaseError as error:
+		except rethinkdb.ReqlDriverError as error:
 			print('Database Error')
-			self.logging.error(error)
-			sys.exit(2)
-		except sqlite3.ProgrammingError as error:
-			print('Programming Error')
 			self.logging.error(error)
 			sys.exit(2)
 
 
 	def get_playbook_run(self,primary_key):
 		try:
-			dict_info = {}
-			dict_info['plays'] = []
-			#primarykey is int
-			cursor = self.conn.cursor()
-			cursor.execute('select * from playbooks where rowid = ?',(int(primary_key),))
-			playbook_info  = cursor.fetchone()
-			dict_info['execution_id'] = playbook_info[2]
-			dict_info['playbook_name'] = playbook_info[0]
-			dict_info['overall_result'] = playbook_info[1]
-			dict_info['plays'] = {}
-			cursor.execute('select * from plays where play_id = ?',(int(primary_key),))
-			for play in cursor.fetchall():
-				dict_info['plays'][play[1]] = {}
-			cursor.execute('select * from tasks where task_id = ?',(int(primary_key),))
-			for task in cursor.fetchall():
-				#This is a little sketch but whatever
-				dict_info['plays'][task[1]] = {task[2]:{'result':task[3],'target':task[4].split(',')
-					,'stderr':task[5]}}
-			return dict_info
-		except sqlite3.DatabaseError as error:
+			return rethinkdb.table('playbook_runs').get(primary_key).run(self.conn, db='ansible_ina_box')
+		except rethinkdb.ReqlDriverError as error:
 			print('Database Error')
 			self.logging.error(error)
 			sys.exit(2)
-		except sqlite3.ProgrammingError as error:
-			print('Programming Error')
-			self.logging.error(error)
-			sys.exit(2)
+		
 
-	def insert_playbook(self, playbook_name, overall_result):
+	def insert_playbook(self, playbook_name):
 		try:
-			cursor = self.conn.cursor()
-			self.conn.execute('insert into playbooks values (?,?,?)',(playbook_name,overall_result,None))
-			self.conn.commit()
-			cursor.execute('select rowid from playbooks order by rowid desc limit 1')
-			return cursor.fetchone()[0]
-		except sqlite3.DatabaseError as error:
+			primary_key = rethinkdb.table('playbook_runs').insert({'name':playbook_name,
+				'overall_result':'running','plays':[],'stats':{}}).run(self.conn, db='ansible_ina_box')
+			return primary_key['generated_keys'][0]
+		except rethinkdb.ReqlDriverError as error:
 			print('Database Error')
 			self.logging.error(error)
 			sys.exit(2)
-		except sqlite3.ProgrammingError as error:
-			print('Programming Error')
-			self.logging.error(error)
-			sys.exit(2)
 
-	def insert_play(self, play_id, play_name):
+	def update_playbook(self, primary_key ,ans_data):
 		try:
-			#play_id is execution_id from playbook
-			self.conn.execute('insert into plays values (?,?,?)',(play_id,play_name,play_id))
-			self.conn.commit()
-		except sqlite3.DatabaseError as error:
-			print('Database Error')
-			self.logging.error(error)
-			sys.exit(2)
-		except sqlite3.ProgrammingError as error:
-			print('Programming Error')
-			self.logging.error(error)
-			sys.exit(2)
-
-	def insert_task(self, task_id, play_name, task_name, result, target, stderr):
-		try:
-			self.conn.execute('insert into tasks values (?,?,?,?,?,?)',(task_id,play_name,task_name,result,target,stderr))
-			self.conn.commit()
-		except sqlite3.DatabaseError as error:
-			print('Database Error')
-			self.logging.error(error)
-			sys.exit(2)
-		except sqlite3.ProgrammingError as error:
-			print('Programming Error')
-			self.logging.error(error)
-			sys.exit(2)
-
-	def update_playbook(self, plays,result):
-		try:
+			overall_result = 'finished'
+			for stats in ans_data['stats']:
+				if ans_data['stats'][stats]['failures'] > 0:
+					overall_result == 'failed'
 			#values is a dict with {key:value}
-			self.conn.execute('update playbooks SET plays = ?, overall_result = ?',(int(plays),result))
-			self.conn.commit()
-		except sqlite3.DatabaseError as error:
+			#This may not work
+			data = rethinkdb.table('playbook_runs').get(primary_key).run(self.conn, db='ansible_ina_box')
+			data['overall_result'] = overall_result
+			data['plays'] = ans_data['plays']
+			data['stats'] = ans_data['stats'] 
+			rethinkdb.table('playbook_runs').update(data).run(self.conn, db='ansible_ina_box')
+		except rethinkdb.ReqlDriverError as error:
 			print('Database Error')
 			self.logging.error(error)
 			sys.exit(2)
-		except sqlite3.ProgrammingError as error:
-			print('Programming Error')
-			self.logging.error(error)
-			sys.exit(2)
+
+	def nice_report(self, primary_key): 

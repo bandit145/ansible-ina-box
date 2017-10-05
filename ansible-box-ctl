@@ -2,6 +2,73 @@
 import argparse
 import sys
 import sh
+import getpass
+import json
+from coloroma import init, Fore
+from src.utilities.job import Job
+from src.utilities.database import Database
+from config import logging
 parser = argparse.ArgumentParser(description='Control script for ansible-ina-box')
-parser.add_subparsers('run',description='Run ansible playbook')
-parser.add_subparsers()
+parsers = parser.add_subparsers(help='"command" help')
+parser_run = parsers.add_parser('run',help='run and ansible playbook')
+parser.add_argument('--configure',help='configure ansible-ina-box database',action='store_true')
+parser_run.add_argument('playbook',help='playbook name to run')
+parser_run.add_argument('extra-args',help='arguments to pass to playbook as "--extra-args"')
+#if empty string it will interactvly prompt for -k,-K, and --ask-vault-pass
+parser_run.add_argument('-k',help='prompt for login password')
+parser_run.add_argument('-i',help='inventory for run')
+parser_run.add_argument('-u','--unattended', help='Unattended run expects json and returns json',action='store_true')
+parser_run.add_argument('-K',help='prompt for sudo become password, if "ssh" is enterd it will use the ssh pass')
+parser_run.add_argument('--ask-vault-pass',help='prompt for vault password')
+parser_get = parser.add_parser('get',description='Get results from a run')
+parser_get.add_argument('run-id',help='ID of run')
+
+#parsers.add_subparsers('user',description='')
+args = parser.parse_args()
+init()
+def main():
+	if args.configure:
+		make_database()
+
+	run = {}
+	run['variables'] = {}
+	run['args'] = {}
+	run['playbook'] = args.playbook
+	if args.i:
+		run['-i'] = args.i
+	if args.extra_args:
+		run['variables'] = {}
+		run['variables'] = args.extra_args
+	if args.k == '':
+		run['args']['-k'] = get_creds('SSH password')
+	if args.K == '':
+		run['args']['-K'] = get_creds('Sudo password')
+	if args.ask_vault_pass == '':
+		run['args']['--ask-vault-pass'] = get_creds('Vault password')
+
+def unattended():
+	api_data = sys.stdin.readline()
+	if 'method' not in api_data.keys():
+		print(json.dumps({'error':'missing method section of api call'}))
+		sys.exit(1)
+	if api_data['method'] == 'run':
+		if 'playbook' not in api_data.keys():
+			print(json.dumps({'error':'missing playbook key of api call'}))
+			sys.exit(1)
+		run_playbook(api_data)
+
+
+def run_playbook(run):
+
+
+def make_database():
+	db = Database(logging)
+	db.provision_database()
+	print('Database created!')
+	sys.exit(0)
+
+def get_creds(credential):
+	return	getpass.getpass('Enter {cred} > '.format(cred=credential))
+
+if __name__ == '__main__':
+	main()

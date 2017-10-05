@@ -23,10 +23,28 @@
         remote_src: yes
         creates: /usr/local/bin/python3.6
 
-    - name: install yum-utils
+    - name: add rethinkdb repo
+      yum_repository:
+        name: rethinkdb
+        description: rethinkdb repo
+        baseurl: http://download.rethinkdb.com/centos/7/$basearch/
+        gpgcheck: no
+
+    - name: install epel-release
       yum:
-        name: yum-utils
-        state: present
+        name: epel-release
+        state: latest
+        update_cache: yes
+
+    - name: install yum-utils and rethinkdb
+      yum:
+        name: "{{item}}"
+        state: latest
+        update_cache: yes
+      with_items:
+        - yum-utils
+        - rethinkdb
+        - redis
 
     - name: install python builddeps
       command: yum-builddep -y python
@@ -56,11 +74,14 @@
 
     - name: install packages
       pip:
-        name: "{{item}}"
+        requirements: "/opt/ansible-ina-box/requirements.txt"
         state: present
         executable: pip3
-      with_items:
-        - sh==1.12.14
+
+    - name: copy db conf
+      copy:
+        src: instance1.conf
+        dest: /etc/rethinkdb/instances.d/
 
     - name: create log location
       file:
@@ -69,5 +90,11 @@
         owner: ansible-admin
         group: ansible-admin
         mode: 0775
+
+    - name: enable and run rethinkdb
+      service:
+        name: rethinkdb
+        state: started
+        enabled: yes
 
 
