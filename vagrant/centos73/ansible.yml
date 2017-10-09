@@ -54,11 +54,13 @@
       args:
         chdir: /tmp/Python-3.6.2
         creates: /usr/local/bin/python3.6
+      register: configure
 
     - name: make python 3.6.2
       make:
         chdir: /tmp/Python-3.6.2
         target: install
+      when: configure.changed
 
     - name: link python 3.6.2
       file:
@@ -91,10 +93,29 @@
         group: ansible-admin
         mode: 0775
 
-    - name: enable and run rethinkdb
+    - name: create /ansible
+      file:
+        path: /ansible
+        state: directory
+        owner: vagrant
+        group: vagrant
+
+    - name: copy .cfg file to /ansible
+      copy:
+        src: ansible_machine.cfg
+        dest: /ansible/ansible.cfg
+
+    - name: copy playbook to /ansible
+      copy:
+        src: test.yml
+        dest: /ansible/test.yml
+
+    - name: enable and run services
       service:
-        name: rethinkdb
+        name: "{{item}}"
         state: started
         enabled: yes
+      with_items:
+        - rethinkdb
 
 

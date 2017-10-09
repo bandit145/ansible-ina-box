@@ -1,0 +1,15 @@
+2017-10-08T23:56:10.077090528 0.010133s warn: Parent directory of log file (/opt/ansible-ina-box/rethinkdb_data/log_file) could not be synced. (Invalid argument)
+2017-10-08T23:56:10.077912237 0.010955s notice: Recursively removing directory /opt/ansible-ina-box/rethinkdb_data/tmp
+2017-10-08T23:56:10.079888104 0.012931s warn: Failed to sync parent directory of "/opt/ansible-ina-box/rethinkdb_data/tmp" (errno: 22 - Invalid argument). You may encounter data loss in case of a system failure. (Is the file located on a filesystem that doesn't support directory sync? e.g. VirtualBox shared folders)
+2017-10-08T23:56:10.083143914 0.016192s notice: Initializing directory /opt/ansible-ina-box/rethinkdb_data
+2017-10-08T23:56:10.083840648 0.016883s info: Creating a default database for your convenience. (This is because you ran 'rethinkdb' without 'create', 'serve', or '--join', and the directory '/opt/ansible-ina-box/rethinkdb_data' did not already exist or is empty.)
+2017-10-08T23:56:10.084093957 0.017136s notice: Running rethinkdb 2.3.6 (GCC 4.8.3)...
+2017-10-08T23:56:10.088297852 0.021342s notice: Running on Linux 3.10.0-514.26.2.el7.x86_64 x86_64
+2017-10-08T23:56:10.088633366 0.021675s notice: Loading data from directory /opt/ansible-ina-box/rethinkdb_data
+2017-10-08T23:56:10.091730658 0.024773s warn: Failed to sync parent directory of "/opt/ansible-ina-box/rethinkdb_data/tmp/metadata.create" (errno: 22 - Invalid argument). You may encounter data loss in case of a system failure. (Is the file located on a filesystem that doesn't support directory sync? e.g. VirtualBox shared folders)
+2017-10-08T23:56:10.094658624 0.027701s warn: Failed to sync parent directory of "/opt/ansible-ina-box/rethinkdb_data/tmp/metadata.create" (errno: 22 - Invalid argument). You may encounter data loss in case of a system failure. (Is the file located on a filesystem that doesn't support directory sync? e.g. VirtualBox shared folders)
+2017-10-08T23:56:10.098218536 0.031261s warn: Failed to sync parent directory of "/opt/ansible-ina-box/rethinkdb_data/metadata" (errno: 22 - Invalid argument). You may encounter data loss in case of a system failure. (Is the file located on a filesystem that doesn't support directory sync? e.g. VirtualBox shared folders)
+2017-10-08T23:56:10.101954825 0.034998s info: Automatically using cache size of 100 MB
+2017-10-08T23:56:10.105018231 0.038061s warn: Cache size does not leave much memory for server and query overhead (available memory: 716 MB).
+2017-10-08T23:56:10.105024287 0.038066s warn: Cache size is very low and may impact performance.
+2017-10-08T23:56:10.106043205 0.039085s error: TCP socket creation failed for port 29015: Address already in use.

@@ -1,0 +1,13 @@
+---
+- name: test running playbooks
+  hosts: all
+  gather_facts: no
+  
+  tasks:
+
+    - name: do something
+      command: echo "I work!"
+      delegate_to: localhost
+
+    - debug:
+        var: test_var

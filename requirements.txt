@@ -1,7 +1,6 @@
 click==6.7
 pexpect==4.2.1
+ansible==2.3.0.0
 ptyprocess==0.5.2
-redis==2.10.6
 rethinkdb==2.3.0.post6
-rq==0.8.2
 sh==1.12.14

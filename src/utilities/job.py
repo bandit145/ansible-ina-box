@@ -1,11 +1,9 @@
-import rq
-import redis
-from utilities.database import Database
-from utilites.email import Email
+from src.utilities.database import Database
+from src.utilities.email import Email
 import pexpect
 import sys
 import json
-import os
+
 class Job:
 
 	def __init__(self, run, email, ansible_dir, api_run, logging):
@@ -18,48 +16,51 @@ class Job:
 		self.api_run = api_run
 
 	def parse_ansible_playbook(self):
-		try:
-			db = Database()
-			os.chdir(self.ansible_dir)
-			self.ansible_run.append('ansible-playbook')
-			if '-i' in self.run.keys():
-				self.ansible_run.append('-i')
-				self.ansible_run.append(self.run['-i'])
-			self.ansible_run.append(self.run['playbook'])
-			for key in self.run['args'].keys():
-				self.ansible_run.append(key)
-			if 'variables' in self.run.keys():
-				variables = '--extra-vars="'
-				for key in self.run['variables'].keys():
-					variables += ' '+key+'='self.run['variables'][key]
+		db = Database(self.logging)
+		self.ansible_run.append('ansible-playbook')
+		self.ansible_run.append(self.run['playbook'])
+		if '-i' in self.run.keys():
+			self.ansible_run.append('-i')
+			self.ansible_run.append(self.run['-i'])
+		for key in self.run['args'].keys():
+			self.ansible_run.append(' '+key)
+		if 'variables' in self.run.keys():
+			variables = '--extra-vars="'
+			for key in self.run['variables'].keys():
+				variables += ' '+key+'='+self.run['variables'][key]
 				variables += '"'
 				self.ansible_run.append(variables)
-			run_id = db.insert_playbook(self.run['playbook'],'in_progress')
-			self.run_ansible_playbook(run_id)
-			return run_id
-		except os.error:
-			if self.api_run:
-				print(json.dumps({'error':'ansible directory is not accessible'}))
-			else:
-				print('Ansible dir cannot be found/not accessible')
-			self.logging.debug('Ansible dir cannot be found/not accessible')
-			sys.exit(1)
-
-	def rq_handoff(self, run_id):
-		queue = rq.Queue(connection=redis.Redis())
-		queue.enqueue(self.run_ansible_playbook(run_id))
-		return {'playbook_name':self.run['playbook'],'run_id':run_id}
+		run_id = db.insert_playbook(self.run['playbook'])
+		return run_id
 
 	def run_ansible_playbook(self, run_id):
 		try:
-			db = Database()
-			ansible_out = json.loads(pexpect.run(self.ansible_run,events={'SSH Password:':run['args']['-k'],
-				'SUDO Password': run['args']['-K'], 'Vault Password': run['args']['--ask-vault-pass']}).strip())
-			db.update_playbook(run_id, ansible_out )
+			db = Database(self.logging)
+			events = {}
+			if '-K' in self.run['args'].keys():
+				events['SUDO'] = self.run['args']['-K']+'\n'
+			if '-k' in self.run['args'].keys():
+				events['SSH'] = self.run['args']['-k']+'\n'
+			if '--ask-vault-pass' in self.run['args'].keys():
+				events['Vault'] = self.run['args']['--ask-vault-pass']+'\n'
+			ansible_out = pexpect.run(' '.join(self.ansible_run),cwd=self.ansible_dir,events=events).decode()
+			ansible_out = json.loads(ansible_out[ansible_out.index('{'):])
+			#print(ansible_out)
+			db.update_playbook(run_id, ansible_out)
+			return {'playbook_name':self.run['playbook'],'run_id':run_id}
 		except pexpect.TIMEOUT:
+			db.update_playbook(run_id, {'error':'Internal timeout'})
 			if self.api_run:
 				print(json.dumps({'error':'ansible run timed out'}))
 			else:
 				print('ansible run timed out')
-			logging.debug('ansible run timed out')
+			logging.error('ansible run timed out')
+			sys.exit(1)
+
+		except pexpect.ExceptionPexpect:
+			if self.api_run:
+				print(json.dumps({'error':'ansible directory is not accessible'}))
+			else:
+				print('Ansible dir cannot be found/not accessible')
+			self.logging.error('Ansible dir cannot be found/not accessible')
 			sys.exit(1)

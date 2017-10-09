@@ -1,5 +1,6 @@
 import rethinkdb
 import sys
+#closeDB conn
 class Database:
 
 	def __init__(self, logging):
@@ -42,14 +43,16 @@ class Database:
 
 	def update_playbook(self, primary_key ,ans_data):
 		try:
+			data = {}
 			overall_result = 'finished'
+			#refactor to use success boolean instead of parsing in here
 			for stats in ans_data['stats']:
 				if ans_data['stats'][stats]['failures'] > 0:
-					overall_result == 'failed'
+					overall_result ='failed'
 			#values is a dict with {key:value}
 			#This may not work
-			data = rethinkdb.table('playbook_runs').get(primary_key).run(self.conn, db='ansible_ina_box')
 			data['overall_result'] = overall_result
+			data['id'] = primary_key
 			data['plays'] = ans_data['plays']
 			data['stats'] = ans_data['stats'] 
 			rethinkdb.table('playbook_runs').update(data).run(self.conn, db='ansible_ina_box')
@@ -58,4 +61,7 @@ class Database:
 			self.logging.error(error)
 			sys.exit(2)
 
-	def nice_report(self, primary_key): 
+	def disconnect(self):
+		self.conn.close()
+
+	#def nice_report(self, primary_key): 

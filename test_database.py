@@ -23,3 +23,6 @@ class TestDatabase(unittest.TestCase):
 		self.assertEqual(self.database.get_playbook_run(key2), {'id':key2,'name':'test2',
 				'overall_result':'running','plays':[]
 				,'stats':{}})
+
+if __name__ == '__main__':
+	unittest.main()
